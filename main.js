@@ -5,10 +5,13 @@ const glados = async () => {
     if (!cookie) continue
     try {
       const domain = process.env.DOMAIN || 'glados.cloud'
+      // ==========这里是替换后的common请求头==========
       const common = {
         'cookie': cookie,
         'referer': `https://${domain}/console/checkin`,
-        'user-agent': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)',
+        'origin': `https://${domain}`,
+        'accept': 'application/json, text/plain, */*',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 QuarkPC/7.3.5.1009',
       }
       const action = await fetch(`https://${domain}/api/user/checkin`, {
         method: 'POST',
