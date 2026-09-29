@@ -1,29 +1,42 @@
 const glados = async () => {
   const notice = []
   if (!process.env.GLADOS) return
+
   for (const cookie of String(process.env.GLADOS).split('\n')) {
     if (!cookie) continue
+
     try {
       const domain = process.env.DOMAIN || 'glados.cloud'
-      // ==========这里是替换后的common请求头==========
+
       const common = {
         'cookie': cookie,
         'referer': `https://${domain}/console/checkin`,
         'origin': `https://${domain}`,
         'accept': 'application/json, text/plain, */*',
-        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 QuarkPC/7.3.5.1009',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
       }
+
       const action = await fetch(`https://${domain}/api/user/checkin`, {
         method: 'POST',
-        headers: { ...common, 'content-type': 'application/json' },
+        headers: {
+          ...common,
+          'content-type': 'application/json;charset=UTF-8',
+        },
         body: JSON.stringify({ token: domain }),
       }).then((r) => r.json())
+
       if (action?.code) throw new Error(action?.message)
+
       const status = await fetch(`https://${domain}/api/user/status`, {
         method: 'GET',
-        headers: { ...common },
+        headers: {
+          ...common,
+          // GET 请求不要带 content-type
+        },
       }).then((r) => r.json())
+
       if (status?.code) throw new Error(status?.message)
+
       notice.push(
         'Checkin OK',
         `${action?.message}`,
@@ -37,13 +50,16 @@ const glados = async () => {
       )
     }
   }
+
   return notice
 }
 
 const notify = async (notice) => {
   if (!process.env.NOTIFY || !notice) return
+
   for (const option of String(process.env.NOTIFY).split('\n')) {
     if (!option) continue
+
     try {
       if (option.startsWith('console:')) {
         for (const line of notice) {
@@ -56,7 +72,7 @@ const notify = async (notice) => {
           body: JSON.stringify({
             appToken: option.split(':')[1],
             summary: notice[0],
-            content: notice.join('<br>'),
+            content: notice.join(''),
             contentType: 3,
             uids: option.split(':').slice(2),
           }),
@@ -68,7 +84,7 @@ const notify = async (notice) => {
           body: JSON.stringify({
             token: option.split(':')[1],
             title: notice[0],
-            content: notice.join('<br>'),
+            content: notice.join(''),
             template: 'markdown',
           }),
         })
@@ -83,26 +99,27 @@ const notify = async (notice) => {
         })
       } else if (option.startsWith('qyweixin:')) {
         const qyweixinToken = option.split(':')[1]
-        const qyweixinNotifyRebotUrl = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=' + qyweixinToken;
+        const qyweixinNotifyRebotUrl =
+          'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=' + qyweixinToken
+
         await fetch(qyweixinNotifyRebotUrl, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             msgtype: 'markdown',
             markdown: {
-                content: notice.join('<br>')
-            }
+              content: notice.join(''),
+            },
           }),
         })
       } else {
-        // fallback
         await fetch(`https://www.pushplus.plus/send`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             token: option,
             title: notice[0],
-            content: notice.join('<br>'),
+            content: notice.join(''),
             template: 'markdown',
           }),
         })
