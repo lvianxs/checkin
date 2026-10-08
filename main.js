@@ -37,7 +37,7 @@ const glados = async () => {
         body: JSON.stringify({ token: domain }),
       }).then((r) => r.json())
 
-      if (action?.code) throw new Error(`${action?.message} (code=${action.code})`)
+      if (action?.code && !(action.code === 1 && action.message?.startsWith("Today's observation logged."))) throw new Error(`${action?.message} (code=${action.code})`)
 
       const status = await fetch(`https://${domain}/api/user/status`, {
         method: 'GET',
