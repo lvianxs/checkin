@@ -15,7 +15,7 @@ const glados = async () => {
     return { notice: ['Checkin Error', 'GLADOS Secret 为空'], failed: true }
   }
   for (const [index, cookie] of cookies.entries()) {
-    
+
 
     try {
       const domain = process.env.DOMAIN || 'glados.cloud'
