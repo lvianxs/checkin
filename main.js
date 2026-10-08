@@ -1,9 +1,21 @@
 const glados = async () => {
   const notice = []
-  if (!process.env.GLADOS) return
+  let failed = false
+  if (!process.env.GLADOS) {
+    return { notice: ['Checkin Error', 'GLADOS Secret 未配置'], failed: true }
+  }
 
-  for (const cookie of String(process.env.GLADOS).split('\n')) {
-    if (!cookie) continue
+  const agents = String(process.env.GLADOS_UA || '').split(/\r?\n/).filter(Boolean)
+  if (!agents.length) {
+    return { notice: ['Checkin Error', 'GLADOS_UA Secret 未配置'], failed: true }
+  }
+
+  const cookies = String(process.env.GLADOS).split(/\r?\n/).filter(Boolean)
+  if (!cookies.length) {
+    return { notice: ['Checkin Error', 'GLADOS Secret 为空'], failed: true }
+  }
+  for (const [index, cookie] of cookies.entries()) {
+    
 
     try {
       const domain = process.env.DOMAIN || 'glados.cloud'
@@ -13,7 +25,7 @@ const glados = async () => {
         'referer': `https://${domain}/console/checkin`,
         'origin': `https://${domain}`,
         'accept': 'application/json, text/plain, */*',
-        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
+        'user-agent': agents[index] || agents[0],
       }
 
       const action = await fetch(`https://${domain}/api/user/checkin`, {
@@ -25,7 +37,7 @@ const glados = async () => {
         body: JSON.stringify({ token: domain }),
       }).then((r) => r.json())
 
-      if (action?.code) throw new Error(action?.message)
+      if (action?.code) throw new Error(`${action?.message} (code=${action.code})`)
 
       const status = await fetch(`https://${domain}/api/user/status`, {
         method: 'GET',
@@ -43,6 +55,8 @@ const glados = async () => {
         `Left Days ${Number(status?.data?.leftDays)}`
       )
     } catch (error) {
+      failed = true
+      console.error(`Account ${index + 1}: check-in failed; see notification for details`)
       notice.push(
         'Checkin Error',
         `${error}`,
@@ -51,7 +65,7 @@ const glados = async () => {
     }
   }
 
-  return notice
+  return { notice, failed }
 }
 
 const notify = async (notice) => {
@@ -72,7 +86,7 @@ const notify = async (notice) => {
           body: JSON.stringify({
             appToken: option.split(':')[1],
             summary: notice[0],
-            content: notice.join(''),
+            content: notice.join('<br>'),
             contentType: 3,
             uids: option.split(':').slice(2),
           }),
@@ -84,7 +98,7 @@ const notify = async (notice) => {
           body: JSON.stringify({
             token: option.split(':')[1],
             title: notice[0],
-            content: notice.join(''),
+            content: notice.join('<br>'),
             template: 'markdown',
           }),
         })
@@ -108,7 +122,7 @@ const notify = async (notice) => {
           body: JSON.stringify({
             msgtype: 'markdown',
             markdown: {
-              content: notice.join(''),
+              content: notice.join('<br>'),
             },
           }),
         })
@@ -119,7 +133,7 @@ const notify = async (notice) => {
           body: JSON.stringify({
             token: option,
             title: notice[0],
-            content: notice.join(''),
+            content: notice.join('<br>'),
             template: 'markdown',
           }),
         })
@@ -131,7 +145,11 @@ const notify = async (notice) => {
 }
 
 const main = async () => {
-  await notify(await glados())
+  const { notice, failed } = await glados()
+  if (failed) notice[0] = 'Checkin Error'
+  if (failed && !process.env.NOTIFY) console.error('Check-in failed; configure NOTIFY for details')
+  await notify(notice)
+  if (failed) process.exitCode = 1
 }
 
 main()
