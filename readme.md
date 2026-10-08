@@ -12,11 +12,15 @@ GitHub Actions 实现 [GLaDOS][glados] 自动签到
 
 1. 添加 Cookie 到 Secret `GLADOS`
 
-1. 启用 Actions, 每天北京时间 00:10 自动签到
+1. 添加同一浏览器的 User-Agent 到 Secret `GLADOS_UA`（在登录 GLaDOS 的浏览器控制台执行 `navigator.userAgent` 获取）。重新登录后，需同时更新 Cookie 和对应的 User-Agent；不要将 Cookie 提交到仓库。
+
+1. 启用 Actions, 每天北京时间 00:10 自动签到。签到接口拒绝请求时，运行会显示失败。
 
 ## 高级功能
 
 1. 如有多个帐号, 可以写为多行 Secret `GLADOS`, 每行写一个 Cookie
+
+1. 多个帐号可将 `GLADOS_UA` 按相同顺序写为多行；只写一行时，所有帐号共用该 User-Agent
 
 1. 如需修改时间, 可以修改文件 [run.yml](.github/workflows/run.yml#L7) 中的 `cron` 参数, 格式可参考 [crontab]
 
